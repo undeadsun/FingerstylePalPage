@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FingerstylePal - AI Guitar Practice Coach</title>
+    <meta name="description" content="Stop hoarding tabs. Start mastering them. AI-powered practice routines for fingerstyle guitarists.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#030304',
+                            card: 'rgba(255, 255, 255, 0.03)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    animation: {
+                        'shimmer': 'shimmer 2s linear infinite',
+                        'glow': 'glow 3s ease-in-out infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'breathe': 'breathe 8s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                        },
+                        glow: {
+                            '0%, 100%': { opacity: '0.5', transform: 'scale(1)' },
+                            '50%': { opacity: '0.8', transform: 'scale(1.05)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0px)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        breathe: {
+                            '0%, 100%': { opacity: '0.3', transform: 'scale(1)' },
+                            '50%': { opacity: '0.6', transform: 'scale(1.1)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #030304;
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        /* Noise Texture Overlay */
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        /* Gradient Text */
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .gradient-text-accent {
+            background: linear-gradient(135deg, #60a5fa 0%, #a855f7 50%, #ec4899 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Shimmer Button */
+        .shimmer-btn {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(90deg, #1e40af 0%, #7c3aed 50%, #db2777 100%);
+        }
+
+        .shimmer-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -200%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s linear infinite;
+        }
+
+        /* Ambient Orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            animation: breathe 8s ease-in-out infinite;
+        }
+
+        .orb-blue {
+            background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+        }
+
+        .orb-purple {
+            background: radial-gradient(circle, #a855f7 0%, transparent 70%);
+            animation-delay: 2s;
+        }
+
+        .orb-pink {
+            background: radial-gradient(circle, #ec4899 0%, transparent 70%);
+            animation-delay: 4s;
+        }
+
+        /* Canvas */
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* iPhone Mockup */
+        .iphone-mockup {
+            width: 280px;
+            height: 560px;
+            background: linear-gradient(145deg, #1a1a1a, #0a0a0a);
+            border-radius: 45px;
+            border: 8px solid #000;
+            box-shadow: 0 0 60px rgba(96, 165, 250, 0.3),
+                        inset 0 0 20px rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .iphone-notch {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 25px;
+            background: #000;
+            border-radius: 0 0 20px 20px;
+            z-index: 10;
+        }
+
+        .iphone-screen {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            color: #64748b;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        /* Feature Card Hover */
+        .feature-card {
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Expert Spotlight Glow */
+        .expert-glow {
+            box-shadow: 0 0 80px rgba(96, 165, 250, 0.2);
+        }
+
+        /* Social Proof Logos */
+        .logo-strip {
+            filter: grayscale(100%) brightness(0.6);
+            opacity: 0.5;
+            transition: all 0.3s ease;
+        }
+
+        .logo-strip:hover {
+            filter: grayscale(0%) brightness(1);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Noise Overlay -->
+    <div class="noise-overlay"></div>
+
+    <!-- Particle Canvas -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- Ambient Orbs -->
+    <div class="orb orb-blue" style="width: 500px; height: 500px; top: -200px; right: -100px;"></div>
+    <div class="orb orb-purple" style="width: 600px; height: 600px; top: 50%; left: -200px;"></div>
+    <div class="orb orb-pink" style="width: 550px; height: 550px; bottom: -250px; right: -150px;"></div>
+
+    <!-- Main Container -->
+    <div class="relative z-10">
+
+        <!-- Hero Section -->
+        <section class="min-h-screen flex items-center justify-center px-4 py-20">
+            <div class="max-w-7xl mx-auto w-full">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+
+                    <!-- Left Content -->
+                    <div class="text-center lg:text-left space-y-8">
+
+                        <!-- Badge -->
+                        <div class="inline-flex items-center gap-2 px-4 py-2 glass rounded-full border border-blue-500/30">
+                            <div class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                            <span class="text-sm font-medium text-blue-300">AI Practice Coach</span>
+                        </div>
+
+                        <!-- Headline -->
+                        <h1 class="text-5xl md:text-7xl font-black leading-tight">
+                            <span class="gradient-text">Stop Hoarding Tabs.</span><br>
+                            <span class="gradient-text-accent">Start Mastering Them.</span>
+                        </h1>
+
+                        <!-- Subheadline -->
+                        <p class="text-xl text-slate-400 max-w-xl mx-auto lg:mx-0">
+                            AI-powered practice routines that turn your Guitar Pro tabs into personalized daily workouts. Built for serious fingerstyle players.
+                        </p>
+
+                        <!-- CTA -->
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                            <a href="https://apps.apple.com/il/app/fingerstylepal/id6755329557"
+                               class="shimmer-btn px-8 py-4 rounded-2xl font-bold text-white shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all inline-flex items-center justify-center gap-2">
+                                <i class="fab fa-apple text-xl"></i>
+                                Download on App Store
+                            </a>
+                            <button class="glass px-8 py-4 rounded-2xl font-semibold text-white hover:bg-white/10 transition-all inline-flex items-center justify-center gap-2">
+                                <i class="fas fa-play-circle"></i>
+                                Watch Demo
+                            </button>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="flex flex-wrap gap-8 justify-center lg:justify-start pt-4">
+                            <div>
+                                <div class="text-3xl font-bold gradient-text-accent">18</div>
+                                <div class="text-sm text-slate-500">Techniques</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold gradient-text-accent">7+</div>
+                                <div class="text-sm text-slate-500">GP Formats</div>
+                            </div>
+                            <div>
+                                <div class="text-3xl font-bold gradient-text-accent">iOS 17+</div>
+                                <div class="text-sm text-slate-500">All Devices</div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Right Visual -->
+                    <div class="flex justify-center lg:justify-end">
+                        <div class="iphone-mockup animate-float">
+                            <div class="iphone-notch"></div>
+                            <div class="iphone-screen">
+                                <div class="space-y-4">
+                                    <i class="fas fa-guitar text-6xl text-blue-500"></i>
+                                    <div class="text-white font-semibold">FingerstylePal</div>
+                                    <div class="text-xs">AI Practice Planner</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Social Proof -->
+        <section class="py-12 px-4 border-t border-white/5">
+            <div class="max-w-6xl mx-auto">
+                <p class="text-center text-slate-500 text-sm mb-8">TRUSTED BY GUITARISTS WORLDWIDE</p>
+                <div class="flex flex-wrap justify-center items-center gap-12">
+                    <div class="logo-strip text-4xl"><i class="fas fa-guitar"></i></div>
+                    <div class="logo-strip text-slate-600 font-bold text-2xl">GuitarPro</div>
+                    <div class="logo-strip text-4xl"><i class="fab fa-reddit"></i></div>
+                    <div class="logo-strip text-slate-600 font-bold text-2xl">iOS 18</div>
+                    <div class="logo-strip text-4xl"><i class="fab fa-apple"></i></div>
+                    <div class="logo-strip text-slate-600 font-bold text-2xl">Vision Pro</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Feature Grid (Bento) -->
+        <section class="py-32 px-4">
+            <div class="max-w-7xl mx-auto">
+
+                <!-- Section Header -->
+                <div class="text-center mb-16 space-y-4">
+                    <h2 class="text-4xl md:text-6xl font-black gradient-text">Built for Mastery</h2>
+                    <p class="text-xl text-slate-400 max-w-2xl mx-auto">
+                        Every feature designed to accelerate your progress from tab collector to confident performer.
+                    </p>
+                </div>
+
+                <!-- Bento Grid -->
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                    <!-- Large Card: AI Analysis -->
+                    <div class="lg:col-span-2 lg:row-span-2 glass-strong rounded-3xl p-8 feature-card">
+                        <div class="h-full flex flex-col justify-between space-y-6">
+                            <div>
+                                <div class="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-6">
+                                    <i class="fas fa-brain text-3xl text-blue-400"></i>
+                                </div>
+                                <h3 class="text-3xl font-bold mb-4">AI Analysis Engine</h3>
+                                <p class="text-slate-400 text-lg leading-relaxed">
+                                    Upload any Guitar Pro file (.gp3-.gp5, .gpx). Our AI instantly identifies difficulty spikes, technique patterns, and builds a week-long practice roadmap tailored to your skill level.
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <span class="px-3 py-1 bg-blue-500/10 text-blue-300 rounded-full text-sm">Smart Detection</span>
+                                <span class="px-3 py-1 bg-purple-500/10 text-purple-300 rounded-full text-sm">Weekly Plans</span>
+                                <span class="px-3 py-1 bg-pink-500/10 text-pink-300 rounded-full text-sm">Auto-Adapt</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Small Card: Native GP5 Support -->
+                    <div class="glass-strong rounded-3xl p-8 feature-card">
+                        <div class="w-12 h-12 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-4">
+                            <i class="fas fa-file-audio text-2xl text-purple-400"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Native GP Support</h3>
+                        <p class="text-slate-400">
+                            Full compatibility with Guitar Pro 3-8. No export. No conversion. Just drag and drop.
+                        </p>
+                    </div>
+
+                    <!-- Small Card: Visual Progress -->
+                    <div class="glass-strong rounded-3xl p-8 feature-card">
+                        <div class="w-12 h-12 bg-pink-500/20 rounded-2xl flex items-center justify-center mb-4">
+                            <i class="fas fa-chart-line text-2xl text-pink-400"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">Visual Streaks</h3>
+                        <p class="text-slate-400">
+                            Track practice consistency with beautiful progress graphs and mastery scores.
+                        </p>
+                    </div>
+
+                    <!-- Large Card: Focus Mode Player -->
+                    <div class="lg:col-span-2 glass-strong rounded-3xl p-8 feature-card">
+                        <div class="flex flex-col md:flex-row items-start gap-6">
+                            <div class="flex-1 space-y-4">
+                                <div class="w-12 h-12 bg-green-500/20 rounded-2xl flex items-center justify-center">
+                                    <i class="fas fa-play text-2xl text-green-400"></i>
+                                </div>
+                                <h3 class="text-3xl font-bold">Focus Mode Player</h3>
+                                <p class="text-slate-400 text-lg">
+                                    Variable speed playback (0.5x-2x), built-in metronome, loop sections, and flexible score layouts. Everything in one distraction-free interface.
+                                </p>
+                                <div class="flex gap-2">
+                                    <div class="px-4 py-2 bg-slate-800 rounded-lg text-sm">7 Speeds</div>
+                                    <div class="px-4 py-2 bg-slate-800 rounded-lg text-sm">Loop Mode</div>
+                                    <div class="px-4 py-2 bg-slate-800 rounded-lg text-sm">Metronome</div>
+                                </div>
+                            </div>
+                            <div class="w-full md:w-48 h-48 glass rounded-2xl flex items-center justify-center">
+                                <i class="fas fa-music text-6xl text-slate-700"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Small Card: 18 Techniques -->
+                    <div class="glass-strong rounded-3xl p-8 feature-card">
+                        <div class="w-12 h-12 bg-yellow-500/20 rounded-2xl flex items-center justify-center mb-4">
+                            <i class="fas fa-graduation-cap text-2xl text-yellow-400"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold mb-3">18 Techniques</h3>
+                        <p class="text-slate-400">
+                            From hammer-ons to slap harmonics. Video tutorials for every technique.
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Testimonials -->
+        <section class="py-32 px-4 bg-gradient-to-b from-transparent via-blue-950/5 to-transparent">
+            <div class="max-w-7xl mx-auto">
+
+                <!-- Section Header -->
+                <div class="text-center mb-16 space-y-4">
+                    <h2 class="text-4xl md:text-6xl font-black gradient-text">Loved by Players</h2>
+                    <p class="text-xl text-slate-400">Real results from the community</p>
+                </div>
+
+                <!-- Expert Spotlight -->
+                <div class="mb-12">
+                    <div class="glass-strong rounded-3xl p-12 expert-glow max-w-4xl mx-auto">
+                        <div class="flex items-start gap-6 mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-3xl font-bold flex-shrink-0">
+                                M
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <h4 class="text-2xl font-bold">Michael Chen</h4>
+                                    <span class="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-xs">Pro Player</span>
+                                </div>
+                                <p class="text-slate-400">15+ years experience, YouTube educator</p>
+                            </div>
+                            <div class="flex text-yellow-400 text-xl">
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                                <i class="fas fa-star"></i>
+                            </div>
+                        </div>
+                        <p class="text-xl text-slate-300 leading-relaxed italic">
+                            "This is the practice tool I wish existed 10 years ago. The AI doesn't just schedule practice—it actually understands guitar technique. My students are finally breaking through plateaus."
+                        </p>
+                    </div>
+                </div>
+
+                <!-- User Reviews Grid -->
+                <div class="grid md:grid-cols-3 gap-6">
+
+                    <div class="glass rounded-2xl p-6 space-y-4">
+                        <div class="flex text-yellow-400">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <p class="text-slate-300">
+                            "Finally mastered 'Dust in the Wind' after weeks of structured practice. The loop mode is a game changer."
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center font-bold">
+                                S
+                            </div>
+                            <div>
+                                <div class="font-semibold text-sm">Sarah J.</div>
+                                <div class="text-xs text-slate-500">Intermediate Player</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6 space-y-4">
+                        <div class="flex text-yellow-400">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <p class="text-slate-300">
+                            "The technique library alone is worth it. Clear video demos for every single move. Phenomenal."
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center font-bold">
+                                D
+                            </div>
+                            <div>
+                                <div class="font-semibold text-sm">David R.</div>
+                                <div class="text-xs text-slate-500">Beginner</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass rounded-2xl p-6 space-y-4">
+                        <div class="flex text-yellow-400">
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <p class="text-slate-300">
+                            "Love that it works with my old GP5 files. No need to re-export everything. Respect."
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center font-bold">
+                                A
+                            </div>
+                            <div>
+                                <div class="font-semibold text-sm">Alex T.</div>
+                                <div class="text-xs text-slate-500">Advanced Player</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- Pricing -->
+        <section class="py-32 px-4">
+            <div class="max-w-4xl mx-auto text-center">
+                <div class="glass-strong rounded-3xl p-12 space-y-8">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/20 rounded-full">
+                        <i class="fas fa-crown text-purple-400"></i>
+                        <span class="text-sm font-medium text-purple-300">Premium Access</span>
+                    </div>
+
+                    <h2 class="text-4xl md:text-5xl font-black gradient-text-accent">
+                        Start Free. Upgrade Anytime.
+                    </h2>
+
+                    <p class="text-xl text-slate-400 max-w-2xl mx-auto">
+                        Try FingerstylePal for free. Unlock unlimited AI plans, all tutorials, and advanced analytics with Premium.
+                    </p>
+
+                    <div class="flex flex-wrap justify-center gap-6 pt-6">
+                        <div class="glass rounded-2xl p-6 min-w-[200px]">
+                            <div class="text-slate-500 text-sm mb-2">Weekly</div>
+                            <div class="text-3xl font-bold">₪19.90</div>
+                        </div>
+                        <div class="glass-strong rounded-2xl p-6 min-w-[200px] border-purple-500/50">
+                            <div class="text-purple-400 text-sm mb-2">Monthly</div>
+                            <div class="text-3xl font-bold">₪34.90</div>
+                            <div class="text-xs text-slate-500 mt-1">Most Popular</div>
+                        </div>
+                        <div class="glass rounded-2xl p-6 min-w-[200px]">
+                            <div class="text-slate-500 text-sm mb-2">Yearly</div>
+                            <div class="text-3xl font-bold">₪199.90</div>
+                            <div class="text-xs text-green-400 mt-1">Save 52%</div>
+                        </div>
+                    </div>
+
+                    <div class="pt-6">
+                        <a href="https://apps.apple.com/il/app/fingerstylepal/id6755329557"
+                           class="shimmer-btn px-10 py-5 rounded-2xl font-bold text-white text-lg shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-all inline-flex items-center gap-3">
+                            <i class="fab fa-apple text-2xl"></i>
+                            Download Now - It's Free
+                        </a>
+                    </div>
+
+                    <p class="text-sm text-slate-500">
+                        <i class="fas fa-shield-alt text-green-500"></i>
+                        No data collection · Cancel anytime · All Apple devices
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="py-12 px-4 border-t border-white/5">
+            <div class="max-w-6xl mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-guitar text-3xl text-blue-500"></i>
+                        <span class="text-xl font-bold">FingerstylePal</span>
+                    </div>
+
+                    <div class="flex gap-6 text-slate-500">
+                        <a href="#" class="hover:text-white transition"><i class="fab fa-twitter text-xl"></i></a>
+                        <a href="#" class="hover:text-white transition"><i class="fab fa-youtube text-xl"></i></a>
+                        <a href="#" class="hover:text-white transition"><i class="fab fa-instagram text-xl"></i></a>
+                        <a href="#" class="hover:text-white transition"><i class="fab fa-reddit text-xl"></i></a>
+                    </div>
+
+                    <div class="text-sm text-slate-500">
+                        © 2025 FingerstylePal. Made for guitarists.
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Particle Animation Script -->
+    <script>
+        // Canvas Setup
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Particle System
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = canvas.height + Math.random() * 100;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedY = -Math.random() * 0.5 - 0.2;
+                this.speedX = (Math.random() - 0.5) * 0.3;
+                this.opacity = Math.random() * 0.5 + 0.2;
+                this.life = 0;
+                this.maxLife = Math.random() * 200 + 100;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.life++;
+
+                // Fade in and out
+                if (this.life < 50) {
+                    this.opacity = (this.life / 50) * (Math.random() * 0.5 + 0.2);
+                } else if (this.life > this.maxLife - 50) {
+                    this.opacity = ((this.maxLife - this.life) / 50) * (Math.random() * 0.5 + 0.2);
+                }
+
+                // Reset when out of bounds or life ends
+                if (this.y < -10 || this.x < -10 || this.x > canvas.width + 10 || this.life >= this.maxLife) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(150, 180, 255, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Add glow
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = `rgba(150, 180, 255, ${this.opacity * 0.5})`;
+            }
+        }
+
+        // Create particles (optimized for mobile)
+        const particleCount = window.innerWidth < 768 ? 30 : 50;
+        const particles = Array.from({ length: particleCount }, () => new Particle());
+
+        // Animation Loop
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Smooth Scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

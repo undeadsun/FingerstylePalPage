@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FingerstylePal - Master Guitar Pro Tabs with AI</title>
+    <meta name="description" content="Turn your Guitar Pro tabs into personalized practice routines using AI.">
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 字体 & 图标 -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind 配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        bg: '#030304', /* 极致黑 */
+                        card: 'rgba(255, 255, 255, 0.02)',
+                        border: 'rgba(255, 255, 255, 0.05)',
+                        accent: '#3b82f6',
+                    },
+                    animation: {
+                        'blob': 'blob 10s infinite',
+                        'fade-up': 'fadeUp 0.8s ease-out forwards',
+                        'shimmer': 'shimmer 2s linear infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        fadeUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* 全局噪点 (提升质感的关键) */
+        .noise-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        /* 玻璃拟态卡片 */
+        .glass {
+            background: var(--card);
+            border: 1px solid var(--border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+        }
+        .glass:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-2px);
+        }
+
+        /* 霓虹光斑 */
+        .glow-bg {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            z-index: -1;
+            opacity: 0.5;
+        }
+
+        /* 隐藏滚动条但允许滚动 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #030304; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+    </style>
+</head>
+<body class="bg-bg text-slate-300 antialiased overflow-x-hidden selection:bg-blue-500 selection:text-white">
+
+    <!-- 1. 噪点层 -->
+    <div class="noise-overlay"></div>
+
+    <!-- 2. 粒子动画画布 (新增) -->
+    <canvas id="particle-canvas" class="fixed inset-0 w-full h-full pointer-events-none z-0 opacity-60"></canvas>
+
+    <!-- 3. 背景光斑 -->
+    <div class="glow-bg bg-blue-600/20 w-[500px] h-[500px] top-[-100px] left-[-100px] animate-blob"></div>
+    <div class="glow-bg bg-purple-600/20 w-[500px] h-[500px] top-[20%] right-[-100px] animate-blob animation-delay-2000"></div>
+
+    <!-- 导航栏 -->
+    <nav class="fixed top-0 w-full z-40 border-b border-white/5 bg-bg/80 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-3 font-bold text-white text-xl tracking-tight">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-guitar text-xs"></i>
+                </div>
+                FingerstylePal
+            </div>
+            <a href="https://apps.apple.com/il/app/fingerstylepal/id6755329557" target="_blank" class="hidden md:inline-flex items-center justify-center px-5 py-2 text-sm font-semibold text-white transition-all duration-200 bg-white/10 border border-white/10 rounded-full hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-gray-900">
+                Download
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 md:pt-48 md:pb-32 max-w-7xl mx-auto px-6 text-center z-10">
+        
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-bold mb-8 animate-fade-up">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+            AI Practice Coach for Guitarists
+        </div>
+
+        <!-- Headline -->
+        <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold text-white tracking-tight leading-[1.1] mb-8 animate-fade-up" style="animation-delay: 0.1s;">
+            Stop Hoarding Tabs. <br>
+            <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400">
+                Start Mastering Them.
+            </span>
+        </h1>
+
+        <!-- Subheadline -->
+        <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12 animate-fade-up" style="animation-delay: 0.2s;">
+            Import your <strong>.gp5 / .gpx</strong> files. Let AI generate a personalized 21-day practice plan. The smart way to learn fingerstyle.
+        </p>
+
+        <!-- CTAs -->
+        <div class="flex flex-col sm:flex-row justify-center items-center gap-4 animate-fade-up" style="animation-delay: 0.3s;">
+            <a href="https://apps.apple.com/il/app/fingerstylepal/id6755329557" target="_blank" 
+               class="group relative inline-flex items-center gap-3 px-8 py-4 bg-white text-black rounded-full font-bold text-lg transition-all hover:scale-105 shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] overflow-hidden">
+                <!-- 流光特效 -->
+                <div class="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-gray-200 to-transparent z-0 opacity-50"></div>
+                <i class="fa-brands fa-apple text-2xl relative z-10"></i>
+                <span class="relative z-10">Download on App Store</span>
+            </a>
+            <a href="#features" class="px-8 py-4 text-white rounded-full font-medium border border-white/10 hover:bg-white/5 transition">
+                See how it works
+            </a>
+        </div>
+
+        <!-- App Mockup Placeholder -->
+        <div class="mt-24 relative max-w-5xl mx-auto animate-fade-up" style="animation-delay: 0.4s;">
+            <div class="rounded-3xl bg-gradient-to-b from-white/10 to-transparent p-1">
+                <div class="rounded-[22px] overflow-hidden bg-[#0a0a0a] relative aspect-video flex items-center justify-center border border-white/5 shadow-2xl">
+                    <!-- 这是一个占位符，请替换成你的 3D Mockup 图片 -->
+                    <div class="text-center">
+                        <i class="fa-solid fa-mobile-screen text-6xl text-white/20 mb-4"></i>
+                        <p class="text-white/40 font-mono text-sm">Place your Rotato 3D Video/Image Here</p>
+                        <img src="https://via.placeholder.com/1200x675/111/333?text=3D+Mockup+Here" class="absolute inset-0 opacity-30 object-cover" alt="">
+                    </div>
+                </div>
+            </div>
+            <!-- 底部反射光 -->
+            <div class="absolute -bottom-20 left-1/2 -translate-x-1/2 w-[80%] h-20 bg-blue-500/20 blur-[80px] rounded-full"></div>
+        </div>
+    </section>
+
+    <!-- Trust Strip -->
+    <div class="border-y border-white/5 bg-white/[0.02]">
+        <div class="max-w-7xl mx-auto px-6 py-10 flex flex-wrap justify-center gap-12 md:gap-20 opacity-40 grayscale">
+            <div class="flex items-center gap-2 text-lg font-bold"><i class="fa-solid fa-file-audio"></i> GuitarPro 5/X</div>
+            <div class="flex items-center gap-2 text-lg font-bold"><i class="fa-brands fa-reddit"></i> r/Guitar</div>
+            <div class="flex items-center gap-2 text-lg font-bold"><i class="fa-brands fa-apple"></i> iOS 18 Ready</div>
+            <div class="flex items-center gap-2 text-lg font-bold"><i class="fa-solid fa-music"></i> Ultimate Guitar</div>
+        </div>
+    </div>
+
+    <!-- Features -->
+    <section id="features" class="py-32 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-16 md:text-center max-w-3xl mx-auto">
+                <h2 class="text-3xl md:text-5xl font-bold text-white mb-6">Your pocket guitar coach.</h2>
+                <p class="text-slate-400 text-lg">FingerstylePal isn't just a tab reader. It's an intelligent system designed to make you consistent.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="glass rounded-3xl p-10 md:col-span-2 relative overflow-hidden group">
+                    <div class="relative z-10">
+                        <div class="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 text-2xl mb-6 border border-blue-500/20 group-hover:scale-110 transition duration-300">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">AI Analysis Engine</h3>
+                        <p class="text-slate-400 max-w-md">
+                            Upload any complex fingerstyle song. Our algorithm parses the structure, identifies difficult sections, and creates a tailored step-by-step practice schedule for you.
+                        </p>
+                    </div>
+                    <div class="absolute right-0 top-1/2 -translate-y-1/2 w-64 h-64 bg-blue-600/10 blur-[80px] rounded-full"></div>
+                </div>
+
+                <div class="glass rounded-3xl p-10 group">
+                    <div class="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-400 text-2xl mb-6 border border-purple-500/20 group-hover:scale-110 transition duration-300">
+                        <i class="fa-solid fa-file-import"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">Native GP Format</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Full support for .gp5, .gpx, and .gp files. Bring your own library without expensive subscriptions.
+                    </p>
+                </div>
+
+                <div class="glass rounded-3xl p-10 group">
+                    <div class="w-14 h-14 rounded-2xl bg-green-500/10 flex items-center justify-center text-green-400 text-2xl mb-6 border border-green-500/20 group-hover:scale-110 transition duration-300">
+                        <i class="fa-solid fa-chart-simple"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">Visual Progress</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Track your streaks. See your mastery level increase day by day. Gamify your practice routine.
+                    </p>
+                </div>
+
+                <div class="glass rounded-3xl p-10 md:col-span-2 relative overflow-hidden group">
+                    <div class="relative z-10">
+                        <div class="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-400 text-2xl mb-6 border border-pink-500/20 group-hover:scale-110 transition duration-300">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-3">Focus Mode Player</h3>
+                        <p class="text-slate-400 max-w-md">
+                            Isolate tracks, loop specific bars, and slow down tempo without losing pitch. The ultimate tool for learning "that impossible riff".
+                        </p>
+                    </div>
+                    <div class="absolute right-0 bottom-0 w-64 h-64 bg-pink-600/10 blur-[80px] rounded-full"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials -->
+    <section class="py-20 relative z-10">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-3xl font-bold text-white mb-12 text-center">Loved by the Community</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Expert Spotlight -->
+                <div class="md:col-span-3 rounded-3xl p-10 md:p-14 relative overflow-hidden border border-blue-500/30 bg-gradient-to-r from-blue-900/20 to-purple-900/20">
+                    <div class="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 blur-[100px] rounded-full"></div>
+                    <div class="relative z-10 flex flex-col md:flex-row gap-8 items-center">
+                        <div class="w-24 h-24 rounded-full border-2 border-blue-400 p-1 bg-white/5 flex-shrink-0">
+                            <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Expert" class="w-full h-full rounded-full object-cover grayscale">
+                        </div>
+                        <div class="text-center md:text-left">
+                            <div class="flex justify-center md:justify-start gap-1 text-yellow-400 mb-4">
+                                <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                            </div>
+                            <blockquote class="text-2xl md:text-3xl font-medium text-white mb-6 leading-snug">
+                                "I used to open a tab and get overwhelmed by the sheer number of notes. This app breaks it down into digestible daily chunks. <span class="text-blue-400">It's a game changer for self-taught guitarists.</span>"
+                            </blockquote>
+                            <div>
+                                <div class="font-bold text-white text-lg">Alex Mitchell</div>
+                                <div class="text-blue-400">Guitar Instructor & YouTuber (150k+ Subs)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass rounded-3xl p-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold text-white">S</div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Sarah J.</div>
+                            <div class="text-xs text-slate-500">Practicing "Neon"</div>
+                        </div>
+                    </div>
+                    <p class="text-slate-400 text-sm">"Finally, an iOS app that renders GP5 files correctly! The UI is stunning and dark mode is perfect for late night practice."</p>
+                </div>
+
+                <div class="glass rounded-3xl p-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold text-white">M</div>
+                        <div>
+                            <div class="font-bold text-white text-sm">Mike Chen</div>
+                            <div class="text-xs text-slate-500">Indie Dev & Musician</div>
+                        </div>
+                    </div>
+                    <p class="text-slate-400 text-sm">"The practice streak feature actually keeps me motivated. I haven't missed a day in 2 weeks. Simple but effective."</p>
+                </div>
+
+                <div class="glass rounded-3xl p-8">
+                    <div class="flex items-center gap-4 mb-4">
+                        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-bold text-white">D</div>
+                        <div>
+                            <div class="font-bold text-white text-sm">David R.</div>
+                            <div class="text-xs text-slate-500">Beginner</div>
+                        </div>
+                    </div>
+                    <p class="text-slate-400 text-sm">"Worth every penny just for the ability to loop specific bars and slow them down. Highly recommended."</p>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-32 relative z-10 overflow-hidden">
+        <div class="glow-bg bg-blue-600/20 w-[800px] h-[800px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 blur-[120px]"></div>
+        
+        <div class="max-w-4xl mx-auto px-6 text-center relative z-20">
+            <h2 class="text-4xl md:text-6xl font-bold text-white mb-8 tracking-tight">Ready to level up?</h2>
+            <p class="text-xl text-slate-400 mb-10">Join thousands of fingerstyle players practicing smarter.</p>
+            
+            <a href="https://apps.apple.com/il/app/fingerstylepal/id6755329557" target="_blank" class="inline-flex items-center gap-3 px-10 py-5 bg-white text-black rounded-full font-bold text-xl transition-transform hover:scale-105 shadow-2xl hover:shadow-white/20">
+                <i class="fa-brands fa-apple text-2xl"></i>
+                <span>Download for iOS</span>
+            </a>
+            <p class="mt-6 text-sm text-slate-600">Compatible with iPhone & iPad • iOS 16+</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-white/5 bg-black py-12 text-center md:text-left">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <div class="font-bold text-white text-lg mb-2">FingerstylePal</div>
+                <p class="text-slate-500 text-sm">© 2025 All rights reserved.</p>
+            </div>
+            <div class="flex gap-6 text-slate-500">
+                <a href="#" class="hover:text-white transition"><i class="fa-brands fa-tiktok text-xl"></i></a>
+                <a href="#" class="hover:text-white transition"><i class="fa-brands fa-instagram text-xl"></i></a>
+                <a href="#" class="hover:text-white transition"><i class="fa-solid fa-envelope text-xl"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 粒子动画脚本 -->
+    <script>
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+
+        // 粒子配置：低调、缓慢、高级
+        const config = {
+            count: 80,           // 粒子数量
+            color: '255, 255, 255', 
+            minSize: 0.5,
+            maxSize: 2,
+            minSpeed: 0.1,       // 极慢速漂浮
+            maxSpeed: 0.3,
+            opacityBase: 0.1
+        };
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        class Particle {
+            constructor() {
+                this.reset(true);
+            }
+
+            reset(initial = false) {
+                this.x = Math.random() * width;
+                this.y = initial ? Math.random() * height : height + 10;
+                this.size = Math.random() * (config.maxSize - config.minSize) + config.minSize;
+                this.speed = Math.random() * (config.maxSpeed - config.minSpeed) + config.minSpeed;
+                this.opacity = Math.random() * 0.5 + config.opacityBase;
+                this.fadeSpeed = Math.random() * 0.005 + 0.002;
+                this.fadingIn = true; 
+            }
+
+            update() {
+                this.y -= this.speed;
+                // 微妙的左右摆动
+                this.x += Math.sin(this.y * 0.005) * 0.2;
+
+                if (this.fadingIn) {
+                    this.opacity += this.fadeSpeed;
+                    if (this.opacity >= 0.5) this.fadingIn = false;
+                } else {
+                    this.opacity -= this.fadeSpeed;
+                    if (this.opacity <= config.opacityBase) this.fadingIn = true;
+                }
+
+                if (this.y < -10) this.reset();
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${config.color}, ${this.opacity})`;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = `rgba(${config.color}, 0.5)`;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        function init() {
+            resize();
+            particles = [];
+            for (let i = 0; i < config.count; i++) {
+                particles.push(new Particle());
+            }
+            animate();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => {
+            resize();
+            // 重置粒子以适应新窗口
+            particles = [];
+            for (let i = 0; i < config.count; i++) particles.push(new Particle());
+        });
+        
+        init();
+    </script>
+</body>
+</html>
